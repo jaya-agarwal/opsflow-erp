@@ -1,0 +1,4 @@
+import {ReactNode} from 'react'; import {X} from 'lucide-react'; import {motion,AnimatePresence} from 'framer-motion';
+export default function Modal({open,title,children,onClose,wide=false}:{open:boolean;title:string;children:ReactNode;onClose:()=>void;wide?:boolean}){
+ return <AnimatePresence>{open&&<motion.div className="modal-backdrop" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}><motion.div className={`modal ${wide?'modal-wide':''}`} initial={{opacity:0,y:20,scale:.98}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:14,scale:.98}} transition={{type:'spring',stiffness:260,damping:22}}><div className="modal-head"><div><h3>{title}</h3></div><button className="icon-btn" onClick={onClose}><X size={18}/></button></div><div className="modal-body">{children}</div></motion.div></motion.div>}</AnimatePresence>
+}

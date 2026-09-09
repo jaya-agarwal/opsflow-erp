@@ -1,0 +1,1 @@
+export default function Loading({rows=5}:{rows?:number}){return <div className="skeleton-list">{Array.from({length:rows}).map((_,i)=><div className="skeleton-row" key={i}><span/><span/><span/><span/></div>)}</div>}
