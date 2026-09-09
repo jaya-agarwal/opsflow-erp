@@ -2,6 +2,25 @@
 
 OpsFlow is a production-minded Mini ERP + CRM for a wholesale/distribution workflow. It covers the required case-study modules and adds an operations intelligence layer so the demo feels like an internal product rather than a generic CRUD dashboard.
 
+## Live deployment
+
+| | |
+|---|---|
+| **Frontend** | https://opsflow-erp-sqj8.onrender.com |
+| **Backend API** | https://opsflow-api-hxez.onrender.com |
+| **Health check** | https://opsflow-api-hxez.onrender.com/health |
+| **Repository** | https://github.com/jaya-agarwal/opsflow-erp |
+
+**Demo credentials** (all roles use password `Demo@123`):
+
+| Role | Email |
+|---|---|
+| Admin | `admin@opsflow.demo` |
+| Sales | `sales@opsflow.demo` |
+| Warehouse | `warehouse@opsflow.demo` |
+| Accounts | `accounts@opsflow.demo` |
+
+
 ## What makes this version distinctive
 
 - **Operations Readiness Score** — a transparent control score built from low-stock items, overdue follow-ups and draft challans.
@@ -119,7 +138,7 @@ Open `http://localhost:5173`. API health check: `http://localhost:5000/health`.
 
 ## Demo credentials
 
-All seeded accounts use `Demo@123`.
+All seeded accounts use `Demo@123` (also listed at the top of this file).
 
 | Role | Email |
 |---|---|
