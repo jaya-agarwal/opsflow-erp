@@ -1,10 +1,505 @@
-import {useEffect,useState} from 'react'; import {Plus,Search,SlidersHorizontal,PackageOpen,ArrowDownToLine,ArrowUpFromLine} from 'lucide-react';
-import {api,money} from '../api'; import {Product} from '../types'; import PageHeader from '../components/PageHeader'; import Modal from '../components/Modal'; import Badge from '../components/Badge'; import Loading from '../components/Loading'; import Toast from '../components/Toast';
-const blank={name:'',sku:'',category:'',unitPrice:'',currentStock:'',minStock:'5',warehouse:'Pune Central'};
-export default function Products(){const[rows,setRows]=useState<Product[]>([]);const[loading,setLoading]=useState(true);const[search,setSearch]=useState('');const[status,setStatus]=useState('');const[open,setOpen]=useState(false);const[stockOpen,setStockOpen]=useState<string|null>(null);const[editing,setEditing]=useState<string|null>(null);const[form,setForm]=useState<any>(blank);const[stockForm,setStockForm]=useState({quantity:'',type:'IN',reason:'Purchase receipt'});const[toast,setToast]=useState<{m:string;t:'success'|'error'}|null>(null);
- const load=()=>{setLoading(true);api.get('/products',{params:{search,stockStatus:status}}).then(r=>setRows(r.data.data)).finally(()=>setLoading(false));}; useEffect(load,[search,status]);
- const submit=async(e:any)=>{e.preventDefault();try{const payload={...form,unitPrice:Number(form.unitPrice),minStock:Number(form.minStock),currentStock:Number(form.currentStock||0)}; if(editing)await api.put(`/products/${editing}`,payload);else await api.post('/products',payload);setOpen(false);setEditing(null);setForm(blank);setToast({m:editing?'Product updated':'Product created',t:'success'});load();}catch(err:any){setToast({m:err?.response?.data?.message||'Could not save product',t:'error'})}};
- const adjust=async(e:any)=>{e.preventDefault();if(!stockOpen)return;try{await api.post(`/products/${stockOpen}`,{...stockForm,quantity:Number(stockForm.quantity)});setStockOpen(false);setToast({m:'Stock movement recorded',t:'success'});load()}catch(err:any){setToast({m:err?.response?.data?.message||'Could not update stock',t:'error'})}};
- return <div><PageHeader eyebrow="WAREHOUSE / PRODUCTS" title="Products" subtitle="Manage pricing, stock thresholds and warehouse locations." action={<button className="btn btn-primary" onClick={()=>{setEditing(null);setForm(blank);setOpen(true)}}><Plus size={17}/> Add product</button>}/><div className="toolbar"><div className="search-box"><Search size={17}/><input placeholder="Search product, SKU or category…" value={search} onChange={e=>setSearch(e.target.value)}/></div><div className="filter-group"><SlidersHorizontal size={15}/><select value={status} onChange={e=>setStatus(e.target.value)}><option value="">All stock states</option><option value="OK">Healthy</option><option value="LOW">Low stock</option><option value="OUT">Out of stock</option></select></div></div><div className="panel table-panel">{loading?<Loading/>:<div className="table-shell"><table><thead><tr><th>Product</th><th>Category</th><th>Unit price</th><th>Current stock</th><th>Threshold</th><th>Warehouse</th><th>Health</th><th></th></tr></thead><tbody>{rows.map(p=><tr key={p.id}><td><div className="person-cell"><div className="product-icon"><PackageOpen size={17}/></div><div><strong>{p.name}</strong><span>{p.sku}</span></div></div></td><td>{p.category}</td><td>{money(p.unitPrice)}</td><td><strong>{p.currentStock}</strong></td><td>{p.minStock}</td><td>{p.warehouse}</td><td><Badge value={p.stockStatus}/></td><td><div className="row-actions"><button className="icon-btn" title="Add/Remove stock" onClick={()=>{setStockOpen(p.id);setStockForm({quantity:'',type:'IN',reason:'Purchase receipt'})}}>{p.stockStatus==='OUT'?<ArrowUpFromLine size={16}/>:<ArrowDownToLine size={16}/>}</button><button className="btn btn-small btn-ghost" onClick={()=>{setEditing(p.id);setForm({...p,unitPrice:String(p.unitPrice),currentStock:String(p.currentStock),minStock:String(p.minStock)});setOpen(true)}}>Edit</button></div></td></tr>)}</tbody></table></div>}</div>
- <Modal open={open} title={editing?'Edit product':'Add product'} onClose={()=>setOpen(false)} wide><form className="form-grid" onSubmit={submit}><label>Product name<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required/></label><label>SKU / code<input value={form.sku} onChange={e=>setForm({...form,sku:e.target.value})} required/></label><label>Category<input value={form.category} onChange={e=>setForm({...form,category:e.target.value})} required/></label><label>Unit price<input type="number" min="0" step="0.01" value={form.unitPrice} onChange={e=>setForm({...form,unitPrice:e.target.value})} required/></label><label>Current stock<input type="number" min="0" value={form.currentStock} onChange={e=>setForm({...form,currentStock:e.target.value})} required/></label><label>Minimum stock alert<input type="number" min="0" value={form.minStock} onChange={e=>setForm({...form,minStock:e.target.value})} required/></label><label className="full">Warehouse / location<input value={form.warehouse} onChange={e=>setForm({...form,warehouse:e.target.value})} required/></label><div className="modal-actions full"><button type="button" className="btn btn-ghost" onClick={()=>setOpen(false)}>Cancel</button><button className="btn btn-primary">{editing?'Save changes':'Create product'}</button></div></form></Modal>
- <Modal open={Boolean(stockOpen)} title="Record stock movement" onClose={()=>setStockOpen(false)}><form className="form-stack" onSubmit={adjust}><label>Movement type<select value={stockForm.type} onChange={e=>setStockForm({...stockForm,type:e.target.value})}><option value="IN">IN — receive stock</option><option value="OUT">OUT — issue stock</option></select></label><label>Quantity<input type="number" min="1" value={stockForm.quantity} onChange={e=>setStockForm({...stockForm,quantity:e.target.value})} required/></label><label>Reason<input value={stockForm.reason} onChange={e=>setStockForm({...stockForm,reason:e.target.value})} required/></label><div className="modal-actions"><button type="button" className="btn btn-ghost" onClick={()=>setStockOpen(false)}>Cancel</button><button className="btn btn-primary">Record movement</button></div></form></Modal>{toast&&<Toast message={toast.m} type={toast.t} onClose={()=>setToast(null)}/>}</div>}
+import { useEffect, useState } from 'react';
+import {
+  Plus,
+  Search,
+  SlidersHorizontal,
+  PackageOpen,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+} from 'lucide-react';
+
+import { api, money } from '../api';
+import { Product } from '../types';
+import PageHeader from '../components/PageHeader';
+import Modal from '../components/Modal';
+import Badge from '../components/Badge';
+import Loading from '../components/Loading';
+import Toast from '../components/Toast';
+
+const blank = {
+  name: '',
+  sku: '',
+  category: '',
+  unitPrice: '',
+  currentStock: '',
+  minStock: '5',
+  warehouse: 'Pune Central',
+};
+
+export default function Products() {
+  const [rows, setRows] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+  const [open, setOpen] = useState(false);
+
+  // IMPORTANT: this state is string | null
+  const [stockOpen, setStockOpen] = useState<string | null>(null);
+
+  const [editing, setEditing] = useState<string | null>(null);
+  const [form, setForm] = useState<any>(blank);
+
+  const [stockForm, setStockForm] = useState({
+    quantity: '',
+    type: 'IN',
+    reason: 'Purchase receipt',
+  });
+
+  const [toast, setToast] = useState<{
+    m: string;
+    t: 'success' | 'error';
+  } | null>(null);
+
+  const load = () => {
+    setLoading(true);
+
+    api
+      .get('/products', {
+        params: {
+          search,
+          stockStatus: status,
+        },
+      })
+      .then((r) => setRows(r.data.data))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    load();
+  }, [search, status]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      const payload = {
+        ...form,
+        unitPrice: Number(form.unitPrice),
+        minStock: Number(form.minStock),
+        currentStock: Number(form.currentStock || 0),
+      };
+
+      if (editing) {
+        await api.put(`/products/${editing}`, payload);
+      } else {
+        await api.post('/products', payload);
+      }
+
+      setOpen(false);
+      setEditing(null);
+      setForm(blank);
+
+      setToast({
+        m: editing ? 'Product updated' : 'Product created',
+        t: 'success',
+      });
+
+      load();
+    } catch (err: any) {
+      setToast({
+        m: err?.response?.data?.message || 'Could not save product',
+        t: 'error',
+      });
+    }
+  };
+
+  const adjust = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!stockOpen) return;
+
+    try {
+      await api.post(`/products/${stockOpen}`, {
+        ...stockForm,
+        quantity: Number(stockForm.quantity),
+      });
+
+      // FIX: stockOpen is string | null, so use null instead of false
+      setStockOpen(null);
+
+      setToast({
+        m: 'Stock movement recorded',
+        t: 'success',
+      });
+
+      load();
+    } catch (err: any) {
+      setToast({
+        m:
+          err?.response?.data?.message ||
+          'Could not update stock',
+        t: 'error',
+      });
+    }
+  };
+
+  return (
+    <div>
+      <PageHeader
+        eyebrow="WAREHOUSE / PRODUCTS"
+        title="Products"
+        subtitle="Manage pricing, stock thresholds and warehouse locations."
+        action={
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              setEditing(null);
+              setForm(blank);
+              setOpen(true);
+            }}
+          >
+            <Plus size={17} />
+            Add product
+          </button>
+        }
+      />
+
+      <div className="toolbar">
+        <div className="search-box">
+          <Search size={17} />
+
+          <input
+            placeholder="Search product, SKU or category…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+
+        <div className="filter-group">
+          <SlidersHorizontal size={15} />
+
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+          >
+            <option value="">All stock states</option>
+            <option value="OK">Healthy</option>
+            <option value="LOW">Low stock</option>
+            <option value="OUT">Out of stock</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="panel table-panel">
+        {loading ? (
+          <Loading />
+        ) : (
+          <div className="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Category</th>
+                  <th>Unit price</th>
+                  <th>Current stock</th>
+                  <th>Threshold</th>
+                  <th>Warehouse</th>
+                  <th>Health</th>
+                  <th></th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {rows.map((p) => (
+                  <tr key={p.id}>
+                    <td>
+                      <div className="person-cell">
+                        <div className="product-icon">
+                          <PackageOpen size={17} />
+                        </div>
+
+                        <div>
+                          <strong>{p.name}</strong>
+                          <span>{p.sku}</span>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td>{p.category}</td>
+
+                    <td>{money(p.unitPrice)}</td>
+
+                    <td>
+                      <strong>{p.currentStock}</strong>
+                    </td>
+
+                    <td>{p.minStock}</td>
+
+                    <td>{p.warehouse}</td>
+
+                    <td>
+                      <Badge value={p.stockStatus} />
+                    </td>
+
+                    <td>
+                      <div className="row-actions">
+                        <button
+                          className="icon-btn"
+                          title="Add/Remove stock"
+                          onClick={() => {
+                            setStockOpen(p.id);
+
+                            setStockForm({
+                              quantity: '',
+                              type: 'IN',
+                              reason: 'Purchase receipt',
+                            });
+                          }}
+                        >
+                          {p.stockStatus === 'OUT' ? (
+                            <ArrowUpFromLine size={16} />
+                          ) : (
+                            <ArrowDownToLine size={16} />
+                          )}
+                        </button>
+
+                        <button
+                          className="btn btn-small btn-ghost"
+                          onClick={() => {
+                            setEditing(p.id);
+
+                            setForm({
+                              ...p,
+                              unitPrice: String(p.unitPrice),
+                              currentStock: String(
+                                p.currentStock
+                              ),
+                              minStock: String(p.minStock),
+                            });
+
+                            setOpen(true);
+                          }}
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <Modal
+        open={open}
+        title={editing ? 'Edit product' : 'Add product'}
+        onClose={() => setOpen(false)}
+        wide
+      >
+        <form className="form-grid" onSubmit={submit}>
+          <label>
+            Product name
+
+            <input
+              value={form.name}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  name: e.target.value,
+                })
+              }
+              required
+            />
+          </label>
+
+          <label>
+            SKU / code
+
+            <input
+              value={form.sku}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  sku: e.target.value,
+                })
+              }
+              required
+            />
+          </label>
+
+          <label>
+            Category
+
+            <input
+              value={form.category}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  category: e.target.value,
+                })
+              }
+              required
+            />
+          </label>
+
+          <label>
+            Unit price
+
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.unitPrice}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  unitPrice: e.target.value,
+                })
+              }
+              required
+            />
+          </label>
+
+          <label>
+            Current stock
+
+            <input
+              type="number"
+              min="0"
+              value={form.currentStock}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  currentStock: e.target.value,
+                })
+              }
+              required
+            />
+          </label>
+
+          <label>
+            Minimum stock alert
+
+            <input
+              type="number"
+              min="0"
+              value={form.minStock}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  minStock: e.target.value,
+                })
+              }
+              required
+            />
+          </label>
+
+          <label className="full">
+            Warehouse / location
+
+            <input
+              value={form.warehouse}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  warehouse: e.target.value,
+                })
+              }
+              required
+            />
+          </label>
+
+          <div className="modal-actions full">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setOpen(false)}
+            >
+              Cancel
+            </button>
+
+            <button className="btn btn-primary">
+              {editing ? 'Save changes' : 'Create product'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(stockOpen)}
+        title="Record stock movement"
+        onClose={() => setStockOpen(null)}
+      >
+        <form className="form-stack" onSubmit={adjust}>
+          <label>
+            Movement type
+
+            <select
+              value={stockForm.type}
+              onChange={(e) =>
+                setStockForm({
+                  ...stockForm,
+                  type: e.target.value,
+                })
+              }
+            >
+              <option value="IN">
+                IN — receive stock
+              </option>
+
+              <option value="OUT">
+                OUT — issue stock
+              </option>
+            </select>
+          </label>
+
+          <label>
+            Quantity
+
+            <input
+              type="number"
+              min="1"
+              value={stockForm.quantity}
+              onChange={(e) =>
+                setStockForm({
+                  ...stockForm,
+                  quantity: e.target.value,
+                })
+              }
+              required
+            />
+          </label>
+
+          <label>
+            Reason
+
+            <input
+              value={stockForm.reason}
+              onChange={(e) =>
+                setStockForm({
+                  ...stockForm,
+                  reason: e.target.value,
+                })
+              }
+              required
+            />
+          </label>
+
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setStockOpen(null)}
+            >
+              Cancel
+            </button>
+
+            <button className="btn btn-primary">
+              Record movement
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {toast && (
+        <Toast
+          message={toast.m}
+          type={toast.t}
+          onClose={() => setToast(null)}
+        />
+      )}
+    </div>
+  );
+}
